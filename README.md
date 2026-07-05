@@ -1,4 +1,4 @@
-# journal
+# journal.txt
 
 A todo.txt-style plain-text journal, grouped by project.
 
@@ -13,7 +13,8 @@ cp journal ~/bin/journal   # or anywhere on your $PATH
 chmod +x ~/bin/journal
 ```
 
-The journal lives at `~/journal.txt`, or `$JOURNAL_FILE` if set.
+The journal lives at `$JOURNAL_FILE`, defaulting to `~/journal.txt` (here,
+`/Volumes/workplace/github/journal.txt/journal.txt`).
 
 ## Usage
 
@@ -54,11 +55,16 @@ only picks up newly completed tasks.
 
 ## Config
 
-`~/.journal.txt.cfg` (or `$JOURNAL_CONFIG`) is plain shell that may set
-`JOURNAL_FILE`, `DONE_FILE`, `JOURNAL_PLAIN=1` (disable color), or the `ls`
-colors `C_HEAD`, `C_DATE`, `C_PROJ`, `C_CTX`, `C_META`, `C_RESET`:
+`~/.journal.txt.cfg` (or `$JOURNAL_CONFIG`) is plain shell. Defaults:
 
 ```sh
-JOURNAL_FILE="$HOME/notes/journal.txt"
-C_CTX=$'\033[31m'    # @context in red instead of yellow
+JOURNAL_FILE="$HOME/journal.txt"
+DONE_FILE="$HOME/done.txt"
+JOURNAL_PLAIN=      # set to 1 to disable color
+C_HEAD=$'\033[1m'   # heading   (bold)
+C_DATE=$'\033[34m'  # date      (blue)
+C_PROJ=$'\033[32m'  # +project  (green)
+C_CTX=$'\033[33m'   # @context  (yellow)
+C_META=$'\033[2m'   # key:value (dim)
+C_RESET=$'\033[0m'
 ```
