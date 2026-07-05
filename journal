@@ -3,20 +3,20 @@
 # journal - a todo.txt-style journal grouped by project.
 #
 # Usage:
-#   journal add some entry text                # add an unassigned entry (top)
-#   journal add '+alias=Display Name' text     # create/name a project, add an entry
-#   journal add +alias some entry text         # add an entry to a project
-#   journal add '+alias=New Name'              # rename a project (no entry text)
+#   journal a[dd] some entry text              # add an unassigned entry (top)
+#   journal a[dd] '+alias=Display Name' text   # create/name a project, add an entry
+#   journal a[dd] +alias some entry text       # add an entry to a project
+#   journal a[dd] '+alias=New Name'            # rename a project (no entry text)
 #   journal ls                                 # show the whole journal
 #   journal ls +alias                          # show one section
 #   journal ls @context                        # entries with @context, grouped
 #   journal ls TERM                            # entries containing TERM, grouped
 #   journal import [done.txt]                  # import completed todo.txt tasks
-#   journal edit                               # open the journal in $EDITOR
+#   journal e[dit]                             # open the journal in $EDITOR
 #   journal -h                                 # this help
 #
-# `a` aliases `add`, `list` aliases `ls`, `e` aliases `edit`. Quote any token
-# with spaces. File is $JOURNAL_FILE, or ~/journal.txt.
+# ls and list are synonyms. Quote any token with spaces. File is $JOURNAL_FILE,
+# or ~/journal.txt.
 #
 # import reads todo.txt "done.txt" lines ("x <done> [<created>] [+proj] text"),
 # files each under its +project (or the top blob), dated by completion date and

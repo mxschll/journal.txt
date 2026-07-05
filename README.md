@@ -2,37 +2,30 @@
 
 A todo.txt-style plain-text journal, grouped by project.
 
-Entries are dated bullets, newest on top. Projects are sections headed
-`YYYY-MM-DD Display Name +alias`; the `+alias` is the key you type. Entries
-without an alias collect in an unassigned blob at the top of the file.
-
 ## Install
 
 ```sh
-cp journal ~/bin/journal   # or anywhere on your $PATH
+cp journal ~/bin/journal
 chmod +x ~/bin/journal
 ```
-
-The journal lives at `$JOURNAL_FILE`, defaulting to `~/journal.txt` (here,
-`/Volumes/workplace/github/journal.txt/journal.txt`).
 
 ## Usage
 
 ```sh
-journal add some entry text                    	# add an unassigned entry
-journal add +alias some entry text             	# add an entry to a project
-journal add '+alias=Display Name' 	 	# name a project
-journal ls                                     	# show the whole journal
-journal ls +alias                              	# show one project
-journal ls @context                            	# entries tagged @context, grouped
-journal ls darude sandstorm			# entries containing "darude sandstorm"
-journal import [done.txt]			# import completed todo.txt tasks
-journal edit					# open the journal in $EDITOR
-journal -h                                     	# help
+journal a[dd] some entry text         # add an unassigned entry
+journal a[dd] +alias some entry text  # add an entry to a project
+journal a[dd] '+alias=Display Name'   # name a project
+journal ls                            # show the whole journal
+journal ls +alias                     # show one project
+journal ls @context                   # entries tagged @context, grouped
+journal ls darude sandstorm           # entries containing "darude sandstorm"
+journal import [done.txt]             # import completed todo.txt tasks
+journal e[dit]                        # open the journal in $EDITOR
+journal -h                            # help
 ```
 
-`a` aliases `add`, `list` aliases `ls`, `e` aliases `edit`. Quote any argument
-containing spaces. Entry text may carry `@context` tags todo.txt-style.
+`ls` and `list` are synonyms. Quote any argument containing spaces. Entry text
+may carry `@context` tags todo.txt-style.
 
 `ls` colorizes when writing to a terminal and prints plain when piped or
 redirected.
