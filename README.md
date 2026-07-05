@@ -25,8 +25,25 @@ journal ls                                     	# show the whole journal
 journal ls +alias                              	# show one project
 journal ls @context                            	# entries tagged @context, grouped
 journal ls darude sandstorm			# entries containing "darude sandstorm"
+journal import [done.txt]			# import completed todo.txt tasks
 journal -h                                     	# help
 ```
 
 `a` aliases `add`, `list` aliases `ls`. Quote any argument containing spaces.
 Entry text may carry `@context` tags todo.txt-style.
+
+## Importing from todo.txt
+
+`journal import` reads a todo.txt `done.txt` and files each completed task into
+the journal. A done line `x <completed> [<created>] [+project] text` becomes a
+bullet dated by its **completion** date, filed under its `+project` (or the top
+blob), with the creation date kept as a `created:<date>` tag:
+
+```
+x 2026-07-02 2026-06-22 +1T ship the thing
+  ->  under +1T:  - 2026-07-02 ship the thing created:2026-06-22
+```
+
+The source defaults to `$DONE_FILE`, then `~/done.txt`, and is **left
+untouched**. Imported lines are logged to `<journal>.imported`, so re-running
+only picks up newly completed tasks.
