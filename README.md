@@ -4,8 +4,10 @@ A todo.txt-style plain-text journal, grouped by project.
 
 ## Install
 
+Download into a directory on your `$PATH` and make it executable:
+
 ```sh
-cp journal ~/bin/journal
+curl -fsSL https://raw.githubusercontent.com/mxschll/journal.txt/refs/heads/main/journal -o ~/bin/journal
 chmod +x ~/bin/journal
 ```
 
@@ -23,12 +25,6 @@ journal import [done.txt]             # import completed todo.txt tasks
 journal e[dit]                        # open the journal in $EDITOR
 journal -h                            # help
 ```
-
-`ls` and `list` are synonyms. Quote any argument containing spaces. Entry text
-may carry `@context` tags todo.txt-style.
-
-`ls` colorizes when writing to a terminal and prints plain when piped or
-redirected.
 
 ## Importing from todo.txt
 
