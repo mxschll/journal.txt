@@ -18,27 +18,28 @@ The journal lives at `~/journal.txt`, or `$JOURNAL_FILE` if set.
 ## Usage
 
 ```sh
-journal                                        # show the whole journal
-journal some entry text                        # add an unassigned entry
-journal '+alias=Display Name' some entry text  # create/name a project, add an entry
-journal +alias some entry text                 # add an entry to a project
-journal '+alias=New Name'                       # rename a project
-journal +alias                                  # show one project
-journal @context                                # show entries tagged @context
+journal add some entry text                    # add an unassigned entry
+journal add '+alias=Display Name' some text    # create/name a project, add an entry
+journal add +alias some entry text             # add an entry to a project
+journal add '+alias=New Name'                   # rename a project (no entry text)
+journal ls                                      # show the whole journal
+journal ls +alias                               # show one project
+journal ls @context                             # entries tagged @context, grouped
+journal ls landing page                         # entries containing "landing page"
 journal -h                                      # help
 ```
 
-Quote any argument containing spaces. Entry text may carry `@context` tags
-todo.txt-style.
+`a` aliases `add`, `list` aliases `ls`. Quote any argument containing spaces.
+Entry text may carry `@context` tags todo.txt-style.
 
 ## Example
 
 ```
-$ journal '+web=Website Redesign' ship the new landing page
-$ journal +web fix @bug in nav
-$ journal grab milk
+$ journal add '+web=Website Redesign' ship the new landing page
+$ journal add +web fix @bug in nav
+$ journal add grab milk
 
-$ journal
+$ journal ls
 - 2026-07-05 grab milk
 
 2026-07-05 Website Redesign +web
