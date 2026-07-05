@@ -12,10 +12,11 @@
 #   journal ls @context                        # entries with @context, grouped
 #   journal ls TERM                            # entries containing TERM, grouped
 #   journal import [done.txt]                  # import completed todo.txt tasks
+#   journal edit                               # open the journal in $EDITOR
 #   journal -h                                 # this help
 #
-# `a` aliases `add`, `list` aliases `ls`. Quote any token with spaces. File is
-# $JOURNAL_FILE, or ~/journal.txt.
+# `a` aliases `add`, `list` aliases `ls`, `e` aliases `edit`. Quote any token
+# with spaces. File is $JOURNAL_FILE, or ~/journal.txt.
 #
 # import reads todo.txt "done.txt" lines ("x <done> [<created>] [+proj] text"),
 # files each under its +project (or the top blob), dated by completion date and
@@ -217,6 +218,7 @@ import_done() {
 case "${1:-}" in
   -h|--help) usage 0 ;;
   add|a)     shift ;;
+  edit|e)    exec "${EDITOR:-vi}" "$JOURNAL_FILE" ;;
   import)    shift; import_done "${1:-}"; exit 0 ;;
   ls|list)
     shift

@@ -26,11 +26,12 @@ journal ls +alias                              	# show one project
 journal ls @context                            	# entries tagged @context, grouped
 journal ls darude sandstorm			# entries containing "darude sandstorm"
 journal import [done.txt]			# import completed todo.txt tasks
+journal edit					# open the journal in $EDITOR
 journal -h                                     	# help
 ```
 
-`a` aliases `add`, `list` aliases `ls`. Quote any argument containing spaces.
-Entry text may carry `@context` tags todo.txt-style.
+`a` aliases `add`, `list` aliases `ls`, `e` aliases `edit`. Quote any argument
+containing spaces. Entry text may carry `@context` tags todo.txt-style.
 
 `ls` colorizes when writing to a terminal and prints plain when piped or
 redirected.
