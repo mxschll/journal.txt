@@ -32,6 +32,9 @@ journal -h                                     	# help
 `a` aliases `add`, `list` aliases `ls`. Quote any argument containing spaces.
 Entry text may carry `@context` tags todo.txt-style.
 
+`ls` colorizes when writing to a terminal and prints plain when piped or
+redirected.
+
 ## Importing from todo.txt
 
 `journal import` reads a todo.txt `done.txt` and files each completed task into
@@ -47,3 +50,14 @@ x 2026-07-02 2026-06-22 +1T ship the thing
 The source defaults to `$DONE_FILE`, then `~/done.txt`, and is **left
 untouched**. Imported lines are logged to `<journal>.imported`, so re-running
 only picks up newly completed tasks.
+
+## Config
+
+`~/.journal.txt.cfg` (or `$JOURNAL_CONFIG`) is plain shell that may set
+`JOURNAL_FILE`, `DONE_FILE`, `JOURNAL_PLAIN=1` (disable color), or the `ls`
+colors `C_HEAD`, `C_DATE`, `C_PROJ`, `C_CTX`, `C_META`, `C_RESET`:
+
+```sh
+JOURNAL_FILE="$HOME/notes/journal.txt"
+C_CTX=$'\033[31m'    # @context in red instead of yellow
+```

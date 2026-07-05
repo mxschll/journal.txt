@@ -22,12 +22,32 @@
 # tagged "created:<date>". The source defaults to $DONE_FILE or ~/done.txt and is
 # left untouched; imported lines are logged to $JOURNAL_FILE.imported so re-runs
 # skip them.
+#
+# Config: an optional file (default ~/.journal.txt.cfg, or $JOURNAL_CONFIG) may
+# set JOURNAL_FILE, DONE_FILE, or the C_* colors below. `ls` colorizes when
+# stdout is a terminal; set JOURNAL_PLAIN=1 in the config to disable.
 
 set -euo pipefail
+
+CONFIG="${JOURNAL_CONFIG:-$HOME/.journal.txt.cfg}"
+# shellcheck source=/dev/null
+[[ -f "$CONFIG" ]] && . "$CONFIG"
 
 JOURNAL_FILE="${JOURNAL_FILE:-$HOME/journal.txt}"
 touch "$JOURNAL_FILE"
 today="$(date +%F)"
+
+# Color codes for `ls`, overridable from the config file. Applied to headings
+# (whole line) and to date / +project / @context / key:value tokens in entries.
+C_HEAD="${C_HEAD:-$'\033[1m'}"    # bold
+C_DATE="${C_DATE:-$'\033[34m'}"   # blue
+C_PROJ="${C_PROJ:-$'\033[32m'}"   # green
+C_CTX="${C_CTX:-$'\033[33m'}"     # yellow
+C_META="${C_META:-$'\033[2m'}"    # dim
+C_RESET="${C_RESET:-$'\033[0m'}"
+
+# Color on when writing to a terminal, unless JOURNAL_PLAIN is set.
+if [[ -t 1 && -z "${JOURNAL_PLAIN:-}" ]]; then COLOR=1; else COLOR=0; fi
 
 # is_heading(): line is "YYYY-MM-DD ... +alias ...". Prepended to each awk below.
 IS_HEADING='
@@ -44,6 +64,30 @@ usage() {
   [[ $code -eq 0 ]] && fd=1
   awk '/^#!/ { next } /^#/ { sub(/^#\ ?/, ""); print; next } { exit }' "$0" >&"$fd"
   exit "$code"
+}
+
+# Colorize `ls` output on stdin when $COLOR is 1; otherwise pass through. Headings
+# are bold; within entries the leading date, +project, @context, and key:value
+# metadata tokens are tinted. Colors come from the C_* vars (see config).
+colorize() {
+  if [[ "$COLOR" != 1 ]]; then cat; return; fi
+  C_HEAD="$C_HEAD" C_DATE="$C_DATE" C_PROJ="$C_PROJ" C_CTX="$C_CTX" \
+  C_META="$C_META" C_RESET="$C_RESET" awk "$IS_HEADING"'
+    { hd=ENVIRON["C_HEAD"]; dt=ENVIRON["C_DATE"]; pj=ENVIRON["C_PROJ"]
+      cx=ENVIRON["C_CTX"]; mt=ENVIRON["C_META"]; rs=ENVIRON["C_RESET"] }
+    is_heading() { print hd $0 rs; next }
+    {
+      for (i = 1; i <= NF; i++) {
+        c = ""
+        if ($i ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/) c = dt
+        else if ($i ~ /^\+./) c = pj
+        else if ($i ~ /^@./) c = cx
+        else if ($i ~ /^[^:[:space:]]+:[^:[:space:]]+$/) c = mt
+        printf "%s%s%s%s", (i > 1 ? " " : ""), c, $i, (c != "" ? rs : "")
+      }
+      print ""
+    }
+  '
 }
 
 # Show entries matching a term, grouped under their project headings. A term
@@ -180,7 +224,7 @@ case "${1:-}" in
     elif [[ $# -eq 1 && "$1" == +?* ]]; then show_section "${1#+}"
     elif [[ $# -eq 1 && "$1" == @?* ]]; then show_grouped "$1"
     else                                     show_grouped "$*"
-    fi
+    fi | colorize
     exit 0 ;;
   *)         usage ;;
 esac
