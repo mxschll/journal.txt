@@ -143,7 +143,7 @@ insert_entry() {
       entry = ENVIRON["entry"]; edate = ENVIRON["edate"]; n = NR
 
       if (n == 0) {                                   # empty file
-        if (alias != "") print edate " " (name != "" ? name : alias) " +" alias
+        if (alias != "") print edate (name != "" ? " " name : "") " +" alias
         if (entry != "") print entry
         exit
       }
@@ -162,7 +162,7 @@ insert_entry() {
       } else if (!hstart) {                           # new section at end
         for (i = 1; i <= n; i++) print L[i]
         if (L[n] !~ /^[[:space:]]*$/) print ""
-        print edate " " (name != "" ? name : alias) " +" alias
+        print edate (name != "" ? " " name : "") " +" alias
         if (entry != "") print entry
         exit
       } else {                                        # existing section
