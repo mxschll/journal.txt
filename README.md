@@ -50,10 +50,22 @@ only picks up newly completed tasks.
 JOURNAL_FILE="$HOME/journal.txt"
 DONE_FILE="$HOME/done.txt"
 JOURNAL_PLAIN=      # set to 1 to disable color
+JOURNAL_NO_LINKS=   # set to 1 to keep raw markdown links (no OSC 8 hyperlinks)
 C_HEAD=$'\033[1m'   # heading   (bold)
 C_DATE=$'\033[34m'  # date      (blue)
 C_PROJ=$'\033[32m'  # +project  (green)
 C_CTX=$'\033[33m'   # @context  (yellow)
 C_META=$'\033[2m'   # key:value (dim)
+C_LINK=$'\033[4m'   # link text (underline)
 C_RESET=$'\033[0m'
 ```
+
+On a terminal, `ls` renders `[text](url)` markdown links as clickable
+[OSC 8 hyperlinks](https://gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5feda):
+only the link text shows (underlined), the URL is hidden but still clickable.
+Terminals without OSC 8 support show the text with no way to reach the URL; set
+`JOURNAL_NO_LINKS=1` there to keep the raw markdown. The journal file itself
+always stays plain todo.txt.
+
+Inside tmux, add `set -ga terminal-features ",*:hyperlinks"` to `~/.tmux.conf` so
+links are passed through to the outer terminal.

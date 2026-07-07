@@ -26,7 +26,9 @@
 #
 # Config: an optional file (default ~/.journal.txt.cfg, or $JOURNAL_CONFIG) may
 # set JOURNAL_FILE, DONE_FILE, or the C_* colors below. `ls` colorizes when
-# stdout is a terminal; set JOURNAL_PLAIN=1 in the config to disable.
+# stdout is a terminal; set JOURNAL_PLAIN=1 in the config to disable. It also
+# renders "[text](url)" markdown links as clickable OSC 8 hyperlinks; set
+# JOURNAL_NO_LINKS=1 for terminals that don't support them (keeps raw markdown).
 
 set -euo pipefail
 
@@ -45,10 +47,14 @@ C_DATE="${C_DATE:-$'\033[34m'}"   # blue
 C_PROJ="${C_PROJ:-$'\033[32m'}"   # green
 C_CTX="${C_CTX:-$'\033[33m'}"     # yellow
 C_META="${C_META:-$'\033[2m'}"    # dim
+C_LINK="${C_LINK:-$'\033[4m'}"    # underline (markdown link text)
 C_RESET="${C_RESET:-$'\033[0m'}"
 
 # Color on when writing to a terminal, unless JOURNAL_PLAIN is set.
 if [[ -t 1 && -z "${JOURNAL_PLAIN:-}" ]]; then COLOR=1; else COLOR=0; fi
+# Render markdown links as OSC 8 hyperlinks (clickable link text, URL hidden),
+# unless the terminal lacks support: set JOURNAL_NO_LINKS=1 to keep raw markdown.
+if [[ "$COLOR" == 1 && -z "${JOURNAL_NO_LINKS:-}" ]]; then LINKS=1; else LINKS=0; fi
 
 # is_heading(): line is "YYYY-MM-DD ... +alias ...". Prepended to each awk below.
 IS_HEADING='
@@ -69,22 +75,35 @@ usage() {
 
 # Colorize `ls` output on stdin when $COLOR is 1; otherwise pass through. Headings
 # are bold; within entries the leading date, +project, @context, and key:value
-# metadata tokens are tinted. Colors come from the C_* vars (see config).
+# metadata tokens are tinted. When $LINKS is 1, "[text](url)" tokens become OSC 8
+# hyperlinks: clickable link text (underlined), URL hidden. Styles come from C_*.
 colorize() {
   if [[ "$COLOR" != 1 ]]; then cat; return; fi
+  LINKS="$LINKS" \
   C_HEAD="$C_HEAD" C_DATE="$C_DATE" C_PROJ="$C_PROJ" C_CTX="$C_CTX" \
-  C_META="$C_META" C_RESET="$C_RESET" awk "$IS_HEADING"'
+  C_META="$C_META" C_LINK="$C_LINK" C_RESET="$C_RESET" awk "$IS_HEADING"'
     { hd=ENVIRON["C_HEAD"]; dt=ENVIRON["C_DATE"]; pj=ENVIRON["C_PROJ"]
-      cx=ENVIRON["C_CTX"]; mt=ENVIRON["C_META"]; rs=ENVIRON["C_RESET"] }
+      cx=ENVIRON["C_CTX"]; mt=ENVIRON["C_META"]; lk=ENVIRON["C_LINK"]
+      rs=ENVIRON["C_RESET"]; links=ENVIRON["LINKS"]; esc=sprintf("%c", 27) }
+    # Render "[text](url)" as an OSC 8 hyperlink, or "" if the token is not a link.
+    function mdlink(tok,  rb, text, url) {
+      if (tok !~ /^\[[^]]*\]\([^)]*\)$/) return ""
+      rb = index(tok, "]")
+      text = substr(tok, 2, rb - 2)
+      url = substr(tok, rb + 2, length(tok) - rb - 2)
+      return esc "]8;;" url esc "\\" lk text rs esc "]8;;" esc "\\"
+    }
     is_heading() { print hd $0 rs; next }
     {
       for (i = 1; i <= NF; i++) {
+        sep = (i > 1 ? " " : "")
+        if (links == "1" && (link = mdlink($i)) != "") { printf "%s%s", sep, link; continue }
         c = ""
         if ($i ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/) c = dt
         else if ($i ~ /^\+./) c = pj
         else if ($i ~ /^@./) c = cx
         else if ($i ~ /^[^:[:space:]]+:[^:[:space:]]+$/) c = mt
-        printf "%s%s%s%s", (i > 1 ? " " : ""), c, $i, (c != "" ? rs : "")
+        printf "%s%s%s%s", sep, c, $i, (c != "" ? rs : "")
       }
       print ""
     }
