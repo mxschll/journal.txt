@@ -17,6 +17,7 @@ chmod +x ~/bin/journal
 journal a[dd] some entry text         # add an unassigned entry
 journal a[dd] +alias some entry text  # add an entry to a project
 journal a[dd] '+alias=Display Name'   # name a project
+journal n[ote] +alias '*Scope:* ...'  # add an undated note below the title
 journal ls                            # show the whole journal
 journal ls +alias                     # show one project
 journal ls @context                   # entries tagged @context, grouped
@@ -25,6 +26,24 @@ journal import [done.txt]             # import completed todo.txt tasks
 journal e[dit]                        # open the journal in $EDITOR
 journal -h                            # help
 ```
+
+## Project notes
+
+`journal note` adds an **undated** bullet to a project. These sit right below the
+title and above the dated entries, so you can keep a short description or
+structured summary at the top of a section:
+
+```
+2026-07-08 Test Improvements +TestImprovements
+- *Scope:* CI reliability and cache correctness
+- *Outcome:* flaky rate down, cache-busting shipped
+- 2026-07-07 Merged [PR](https://.../pull/55)
+- 2026-07-05 Merged [CR](https://.../CR-286541997) enabling Cloudfront caching
+```
+
+Notes stay pinned above the dated entries no matter when you add them, and new
+notes stack below existing ones. It's just plain text, so you can also add or
+edit them directly with `journal edit`.
 
 ## Importing from todo.txt
 
