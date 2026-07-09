@@ -31,7 +31,8 @@
 # renders "[text](url)" markdown links as clickable OSC 8 hyperlinks; set
 # JOURNAL_NO_LINKS=1 for terminals that don't support them (keeps raw markdown).
 # "**bold**" and "__italic__" render as ANSI emphasis; set JOURNAL_NO_MD=1 to
-# keep the raw markers.
+# keep the raw markers. Set JOURNAL_WIDTH=N to wrap long lines at N columns, with
+# continuations hang-indented under the bullet text.
 
 set -euo pipefail
 
@@ -61,6 +62,10 @@ if [[ "$COLOR" == 1 && -z "${JOURNAL_NO_LINKS:-}" ]]; then LINKS=1; else LINKS=0
 # Render "**bold**" and "__italic__" as ANSI emphasis; set JOURNAL_NO_MD=1 to keep
 # the raw markers.
 if [[ "$COLOR" == 1 && -z "${JOURNAL_NO_MD:-}" ]]; then MD=1; else MD=0; fi
+# Wrap `ls` lines at JOURNAL_WIDTH columns (0 = off). Continuation lines hang-indent
+# to line up under the bullet text (past the "- ").
+WIDTH="${JOURNAL_WIDTH:-0}"
+[[ "$WIDTH" =~ ^[0-9]+$ ]] || WIDTH=0
 
 # is_heading(): line is "YYYY-MM-DD ... +alias ...". Prepended to each awk below.
 IS_HEADING='
@@ -86,14 +91,15 @@ usage() {
 # "**bold**" and "__italic__" become ANSI emphasis. Styles come from C_*.
 colorize() {
   if [[ "$COLOR" != 1 ]]; then cat; return; fi
-  LINKS="$LINKS" MD="$MD" \
+  LINKS="$LINKS" MD="$MD" WIDTH="$WIDTH" \
   C_HEAD="$C_HEAD" C_DATE="$C_DATE" C_PROJ="$C_PROJ" C_CTX="$C_CTX" \
   C_META="$C_META" C_LINK="$C_LINK" C_RESET="$C_RESET" awk "$IS_HEADING"'
     { hd=ENVIRON["C_HEAD"]; dt=ENVIRON["C_DATE"]; pj=ENVIRON["C_PROJ"]
       cx=ENVIRON["C_CTX"]; mt=ENVIRON["C_META"]; lk=ENVIRON["C_LINK"]
       rs=ENVIRON["C_RESET"]; links=ENVIRON["LINKS"]; md=ENVIRON["MD"]
       esc=sprintf("%c", 27); bel=sprintf("%c", 7)
-      bold=esc "[1m"; ital=esc "[3m" }
+      bold=esc "[1m"; ital=esc "[3m"
+      wd=ENVIRON["WIDTH"]+0; clos=esc "]8;;" esc "\\" }
     # Wrap "text"/"url" as an OSC 8 hyperlink (clickable text, URL hidden).
     function mklink(text, url) {
       return esc "]8;;" url esc "\\" lk text rs esc "]8;;" esc "\\"
@@ -173,10 +179,90 @@ colorize() {
       }
       return out applyEmph(buf)
     }
-    is_heading() { print hd $0 rs; next }
+    # Visible text of s: the string with all ANSI/OSC escape sequences removed.
+    # Used to measure true width and find the bullet indent.
+    function visible(s,  out, n, i, ch, nx, j) {
+      out = ""; n = length(s); i = 1
+      while (i <= n) {
+        ch = substr(s, i, 1)
+        if (ch == esc) {
+          nx = substr(s, i + 1, 1)
+          if (nx == "[") { j = i + 2; while (j <= n && substr(s, j, 1) !~ /[a-zA-Z]/) j++ }
+          else if (nx == "]") {
+            j = i + 2
+            while (j <= n) {
+              if (substr(s, j, 1) == bel) break
+              if (substr(s, j, 1) == esc && substr(s, j + 1, 1) == "\\") { j++; break }
+              j++
+            }
+          } else j = i + 1
+          i = j + 1; continue
+        }
+        out = out ch; i++
+      }
+      return out
+    }
+    # Peel the next unit of s starting at index i, returning the next index and
+    # setting the globals: unit (its text, escapes included), uwid (visible width),
+    # uspace (1 if a run of blanks). A whole OSC 8 hyperlink is one unbreakable unit,
+    # so spaces inside link text never become wrap points.
+    function nextunit(s, i,  n, ch, nx, j, seq, link) {
+      n = length(s); unit = ""; uwid = 0; uspace = 0
+      ch = substr(s, i, 1)
+      if (ch == " " || ch == "\t") {                     # a run of blanks
+        uspace = 1
+        while (i <= n) { ch = substr(s, i, 1); if (ch != " " && ch != "\t") break; unit = unit ch; uwid++; i++ }
+        return i
+      }
+      link = 0
+      while (i <= n) {                                   # a word, up to unescaped blank
+        ch = substr(s, i, 1)
+        if ((ch == " " || ch == "\t") && !link) break
+        if (ch == esc) {
+          nx = substr(s, i + 1, 1)
+          if (nx == "[") { j = i + 2; while (j <= n && substr(s, j, 1) !~ /[a-zA-Z]/) j++ }
+          else if (nx == "]") {
+            j = i + 2
+            while (j <= n) {
+              if (substr(s, j, 1) == bel) break
+              if (substr(s, j, 1) == esc && substr(s, j + 1, 1) == "\\") { j++; break }
+              j++
+            }
+          } else j = i + 1
+          seq = substr(s, i, j - i + 1)
+          if (seq == clos) link = 0                      # OSC 8 close ends the link
+          else if (substr(seq, 1, 5) == esc "]8;;") link = 1   # OSC 8 open starts it
+          unit = unit seq; i = j + 1; continue
+        }
+        unit = unit ch; uwid++; i++
+      }
+      return i
+    }
+    # Wrap s to wd columns, hang-indenting continuations under the bullet text (the
+    # "- " prefix). Escapes are zero-width and never split; words wider than the line
+    # overflow rather than break. Returns s unchanged when wd<=0 or it already fits.
+    function vwrap(s,  V, lead, indent, pad, k, n, i, col, out, first, psp, pwid) {
+      if (wd <= 0) return s
+      V = visible(s)
+      if (length(V) <= wd) return s
+      match(V, /^[ \t]*/); lead = RLENGTH
+      indent = (substr(V, lead + 1, 2) == "- ") ? lead + 2 : lead
+      pad = ""; for (k = 0; k < indent; k++) pad = pad " "
+      n = length(s); i = 1; col = 0; out = ""; first = 1; psp = ""; pwid = 0
+      while (i <= n) {
+        i = nextunit(s, i)
+        if (uspace) { psp = psp unit; pwid += uwid; continue }
+        if (first) { out = unit; col = uwid; first = 0; psp = ""; pwid = 0; continue }
+        if (col + pwid + uwid > wd) { out = out "\n" pad unit; col = indent + uwid }
+        else { out = out psp unit; col += pwid + uwid }
+        psp = ""; pwid = 0
+      }
+      return out
+    }
+    is_heading() { print vwrap(hd $0 rs); next }
     {
       out = renderEntry($0)
-      print (md == "1" ? emph(out) : out)
+      print vwrap(md == "1" ? emph(out) : out)
     }
   '
 }

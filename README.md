@@ -71,6 +71,7 @@ DONE_FILE="$HOME/done.txt"
 JOURNAL_PLAIN=      # set to 1 to disable color
 JOURNAL_NO_LINKS=   # set to 1 to keep raw markdown links (no OSC 8 hyperlinks)
 JOURNAL_NO_MD=      # set to 1 to keep raw **bold** / __italic__ markers
+JOURNAL_WIDTH=0     # wrap `ls` lines at N columns (0 = off)
 C_HEAD=$'\033[1m'   # heading   (bold)
 C_DATE=$'\033[34m'  # date      (blue)
 C_PROJ=$'\033[32m'  # +project  (green)
@@ -89,6 +90,11 @@ always stays plain todo.txt.
 
 Inside tmux, add `set -ga terminal-features ",*:hyperlinks"` to `~/.tmux.conf` so
 links are passed through to the outer terminal.
+
+Set `JOURNAL_WIDTH` to a column count to wrap long lines on the terminal;
+continuation lines hang-indent to line up under the bullet text (past the `- `).
+Wrapping applies only when output is colorized (a terminal), so piping stays
+plain todo.txt.
 
 `ls` also renders `**bold**` as bold and `__italic__` as italic (paired double
 markers only, so single-`*` note labels like `*Scope:*` stay literal). Set
