@@ -30,6 +30,8 @@
 # stdout is a terminal; set JOURNAL_PLAIN=1 in the config to disable. It also
 # renders "[text](url)" markdown links as clickable OSC 8 hyperlinks; set
 # JOURNAL_NO_LINKS=1 for terminals that don't support them (keeps raw markdown).
+# "**bold**" and "__italic__" render as ANSI emphasis; set JOURNAL_NO_MD=1 to
+# keep the raw markers.
 
 set -euo pipefail
 
@@ -56,6 +58,9 @@ if [[ -t 1 && -z "${JOURNAL_PLAIN:-}" ]]; then COLOR=1; else COLOR=0; fi
 # Render markdown links as OSC 8 hyperlinks (clickable link text, URL hidden),
 # unless the terminal lacks support: set JOURNAL_NO_LINKS=1 to keep raw markdown.
 if [[ "$COLOR" == 1 && -z "${JOURNAL_NO_LINKS:-}" ]]; then LINKS=1; else LINKS=0; fi
+# Render "**bold**" and "__italic__" as ANSI emphasis; set JOURNAL_NO_MD=1 to keep
+# the raw markers.
+if [[ "$COLOR" == 1 && -z "${JOURNAL_NO_MD:-}" ]]; then MD=1; else MD=0; fi
 
 # is_heading(): line is "YYYY-MM-DD ... +alias ...". Prepended to each awk below.
 IS_HEADING='
@@ -77,36 +82,101 @@ usage() {
 # Colorize `ls` output on stdin when $COLOR is 1; otherwise pass through. Headings
 # are bold; within entries the leading date, +project, @context, and key:value
 # metadata tokens are tinted. When $LINKS is 1, "[text](url)" tokens become OSC 8
-# hyperlinks: clickable link text (underlined), URL hidden. Styles come from C_*.
+# hyperlinks: clickable link text (underlined), URL hidden. When $MD is 1,
+# "**bold**" and "__italic__" become ANSI emphasis. Styles come from C_*.
 colorize() {
   if [[ "$COLOR" != 1 ]]; then cat; return; fi
-  LINKS="$LINKS" \
+  LINKS="$LINKS" MD="$MD" \
   C_HEAD="$C_HEAD" C_DATE="$C_DATE" C_PROJ="$C_PROJ" C_CTX="$C_CTX" \
   C_META="$C_META" C_LINK="$C_LINK" C_RESET="$C_RESET" awk "$IS_HEADING"'
     { hd=ENVIRON["C_HEAD"]; dt=ENVIRON["C_DATE"]; pj=ENVIRON["C_PROJ"]
       cx=ENVIRON["C_CTX"]; mt=ENVIRON["C_META"]; lk=ENVIRON["C_LINK"]
-      rs=ENVIRON["C_RESET"]; links=ENVIRON["LINKS"]; esc=sprintf("%c", 27) }
-    # Render "[text](url)" as an OSC 8 hyperlink, or "" if the token is not a link.
-    function mdlink(tok,  rb, text, url) {
-      if (tok !~ /^\[[^]]*\]\([^)]*\)$/) return ""
-      rb = index(tok, "]")
-      text = substr(tok, 2, rb - 2)
-      url = substr(tok, rb + 2, length(tok) - rb - 2)
+      rs=ENVIRON["C_RESET"]; links=ENVIRON["LINKS"]; md=ENVIRON["MD"]
+      esc=sprintf("%c", 27); bel=sprintf("%c", 7)
+      bold=esc "[1m"; ital=esc "[3m" }
+    # Wrap "text"/"url" as an OSC 8 hyperlink (clickable text, URL hidden).
+    function mklink(text, url) {
       return esc "]8;;" url esc "\\" lk text rs esc "]8;;" esc "\\"
+    }
+    # Tint one whitespace-delimited word by its kind (date/+project/@context/meta).
+    function colorWord(w,  c) {
+      c = ""
+      if (w ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/) c = dt
+      else if (w ~ /^\+./) c = pj
+      else if (w ~ /^@./) c = cx
+      else if (w ~ /^[^:[:space:]]+:[^:[:space:]]+$/) c = mt
+      return c w (c != "" ? rs : "")
+    }
+    # Render an entry line: scan left to right, turning "[text](url)" into an OSC 8
+    # hyperlink (text may contain spaces; trailing punctuation after ")" is left
+    # out) and tinting every other word. Whitespace is copied verbatim.
+    function renderEntry(s,  out, n, i, ch, rb, rp, text, url, word) {
+      out = ""; n = length(s); i = 1
+      while (i <= n) {
+        ch = substr(s, i, 1)
+        if (ch == " " || ch == "\t") { out = out ch; i++; continue }
+        if (links == "1" && ch == "[") {                # try a link starting here
+          rb = index(substr(s, i + 1), "]")             # "]" relative to i+1
+          if (rb > 0) {
+            rb = i + rb                                 # absolute pos of "]"
+            if (substr(s, rb + 1, 1) == "(") {
+              rp = index(substr(s, rb + 2), ")")        # ")" relative to rb+2
+              if (rp > 0) {
+                rp = rb + 1 + rp                        # absolute pos of ")"
+                text = substr(s, i + 1, rb - i - 1)
+                url  = substr(s, rb + 2, rp - rb - 2)
+                out = out mklink(text, url); i = rp + 1
+                continue
+              }
+            }
+          }
+        }
+        word = ""                                       # a normal word
+        while (i <= n) { ch = substr(s, i, 1); if (ch == " " || ch == "\t") break; word = word ch; i++ }
+        out = out colorWord(word)
+      }
+      return out
+    }
+    # Replace paired "**...**"/"__...__" in plain text t with ANSI emphasis.
+    # Unmatched (odd) markers are left as-is.
+    function pairs(t, mark, code,  res, rest, p, q) {
+      while ((p = index(t, mark)) > 0) {
+        rest = substr(t, p + 2); q = index(rest, mark)
+        if (q == 0) break
+        res = res substr(t, 1, p - 1) code substr(rest, 1, q - 1) rs
+        t = substr(rest, q + 2)
+      }
+      return res t
+    }
+    function applyEmph(t) { return pairs(pairs(t, "**", bold), "__", ital) }
+    # Apply emphasis to visible text only, copying ANSI/OSC escape sequences
+    # verbatim so hidden URLs and color codes are never touched.
+    function emph(s,  out, i, n, c, nx, j, buf) {
+      n = length(s); out = ""; buf = ""; i = 1
+      while (i <= n) {
+        c = substr(s, i, 1)
+        if (c != esc) { buf = buf c; i++; continue }
+        out = out applyEmph(buf); buf = ""
+        nx = substr(s, i + 1, 1)
+        if (nx == "[") {                                  # CSI: ESC [ ... letter
+          j = i + 2
+          while (j <= n && substr(s, j, 1) !~ /[a-zA-Z]/) j++
+        } else if (nx == "]") {                           # OSC: ESC ] ... ESC\ | BEL
+          j = i + 2
+          while (j <= n) {
+            if (substr(s, j, 1) == bel) break
+            if (substr(s, j, 1) == esc && substr(s, j + 1, 1) == "\\") { j++; break }
+            j++
+          }
+        } else { j = i + 1 }
+        out = out substr(s, i, j - i + 1); i = j + 1
+      }
+      return out applyEmph(buf)
     }
     is_heading() { print hd $0 rs; next }
     {
-      for (i = 1; i <= NF; i++) {
-        sep = (i > 1 ? " " : "")
-        if (links == "1" && (link = mdlink($i)) != "") { printf "%s%s", sep, link; continue }
-        c = ""
-        if ($i ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/) c = dt
-        else if ($i ~ /^\+./) c = pj
-        else if ($i ~ /^@./) c = cx
-        else if ($i ~ /^[^:[:space:]]+:[^:[:space:]]+$/) c = mt
-        printf "%s%s%s%s", sep, c, $i, (c != "" ? rs : "")
-      }
-      print ""
+      out = renderEntry($0)
+      print (md == "1" ? emph(out) : out)
     }
   '
 }

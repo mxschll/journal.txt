@@ -70,6 +70,7 @@ JOURNAL_FILE="$HOME/journal.txt"
 DONE_FILE="$HOME/done.txt"
 JOURNAL_PLAIN=      # set to 1 to disable color
 JOURNAL_NO_LINKS=   # set to 1 to keep raw markdown links (no OSC 8 hyperlinks)
+JOURNAL_NO_MD=      # set to 1 to keep raw **bold** / __italic__ markers
 C_HEAD=$'\033[1m'   # heading   (bold)
 C_DATE=$'\033[34m'  # date      (blue)
 C_PROJ=$'\033[32m'  # +project  (green)
@@ -88,3 +89,8 @@ always stays plain todo.txt.
 
 Inside tmux, add `set -ga terminal-features ",*:hyperlinks"` to `~/.tmux.conf` so
 links are passed through to the outer terminal.
+
+`ls` also renders `**bold**` as bold and `__italic__` as italic (paired double
+markers only, so single-`*` note labels like `*Scope:*` stay literal). Set
+`JOURNAL_NO_MD=1` to keep the raw markers. Don't fuse emphasis directly onto a
+link, e.g. `**[text](url)**`; keep them as separate tokens.
